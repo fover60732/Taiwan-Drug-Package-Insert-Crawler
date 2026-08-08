@@ -4,18 +4,19 @@ import re
 import urllib.parse
 import urllib.request
 from bs4 import BeautifulSoup
+import gdown
 import pandas as pd
 import streamlit as st
 
 # =====================================================================
-# 1. 頁面配置 (必須是第一個 Streamlit 指令)
+# 1. 頁面配置
 # =====================================================================
 st.set_page_config(
     page_title="臺灣健保藥品與電子仿單查詢系統", page_icon="💊", layout="wide"
 )
 
 st.title("💊 臺灣健保藥品與電子仿單查詢系統")
-st.caption("🔒 本機極速測試版")
+st.caption("🔒 雲端自動同步版：雙資料庫自動下載與快取機制")
 
 SERVICEURL = "https://mcp.fda.gov.tw/im_detail_1/"
 HEADERS = {
@@ -31,6 +32,9 @@ HEADERS = {
 
 CSV_FILE = "A21030000I-E41001-001.csv"
 JSON_FILE = "39_5.json"
+
+CSV_GDRIVE_ID = "1vhIX7aKWPqz3Ty-vpYH9076cnQEINCX8"
+JSON_GDRIVE_ID = "1ip_lP0Jard142l7Si9xHvXsma2V-1QfW"
 
 
 def clean_lic_num(text):
@@ -54,10 +58,25 @@ def render_blue_badge(text):
 
 
 # =====================================================================
-# 2. 本機資料庫載入 (不進行雲端連線，純讀取本機檔案)
+# 2. 自動下載與快取載入
 # =====================================================================
-@st.cache_data
+@st.cache_data(show_spinner=False)
 def load_and_index_databases():
+  # 自動下載機制
+  if not os.path.exists(JSON_FILE):
+    try:
+      url = f"https://drive.google.com/uc?id={JSON_GDRIVE_ID}"
+      gdown.download(url, JSON_FILE, quiet=True)
+    except Exception as e:
+      st.error(f"❌ 下載 JSON 失敗: {e}")
+
+  if not os.path.exists(CSV_FILE):
+    try:
+      url = f"https://drive.google.com/uc?id={CSV_GDRIVE_ID}"
+      gdown.download(url, CSV_FILE, quiet=True)
+    except Exception as e:
+      st.error(f"❌ 下載 CSV 失敗: {e}")
+
   json_data = []
   if os.path.exists(JSON_FILE):
     try:
@@ -70,8 +89,8 @@ def load_and_index_databases():
               break
         elif isinstance(data, list):
           json_data = data
-    except Exception as e:
-      st.error(f"❌ 讀取 {JSON_FILE} 失敗：{e}")
+    except Exception:
+      pass
 
   lic_index = {}
   ename_index = {}
@@ -162,11 +181,11 @@ def load_and_index_databases():
   return json_data, lic_index, ename_index
 
 
-with st.spinner("⚡ 正在載入本地資料庫..."):
+with st.spinner("📥 首次啟動：正在從雲端下載資料庫並建立索引 (約需 5-10 秒)..."):
   json_database, lic_index, ename_index = load_and_index_databases()
 
 if not json_database:
-  st.error("❌ 錯誤：在目前資料夾找不到 39_5.json 檔案！")
+  st.error("❌ 錯誤：無法載入資料庫！")
   st.stop()
 
 
