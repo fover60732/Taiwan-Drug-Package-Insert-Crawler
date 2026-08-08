@@ -1,37 +1,45 @@
-# 💊 Taiwan-Drug-Package-Insert-Crawler (台灣西藥電子仿單即時查詢系統)
+# 💊 Taiwan Drug Package Insert & NHI Reimbursement Lookup System
+### 台灣西藥健保藥品與電子仿單即時查詢系統 (Streamlit Web App)
 
-A lightweight, robust Command-Line Interface (CLI) tool designed for pharmaceutical and healthcare professionals in Taiwan to look up up-to-date drug information and packaging inserts efficiently. 
-
-By bridging **Taiwan TFDA open data** with **dynamic text scraping**, this tool eliminates the need for entering precise license numbers, allowing for case-insensitive, partial keyword searches on English drug brand names.
+A modern, high-performance Web application designed for pharmacists, healthcare professionals, and regulatory personnel in Taiwan to search, cross-reference, and analyze drug package inserts, ingredients, ATC codes, and National Health Insurance (NHI) reimbursement prices in real time.
 
 ---
 
 ## 🚀 Key Features
 
-- **Dynamic HTML Parsing**: Scrapes and extracts structural data from TFDA's drug information systems, neatly segmenting medical package insert sections (e.g., Indications, Dosage, Contraindications) into readable terminal text while flushing out redundant HTML tag spaces.
-- **Pure Text CLI Layout**: Optimized for high-speed administrative use, displaying pure clinical data without any dynamic front-end layout distractions.
-- **Fault-Tolerant Input Routing**: Features a dynamic routing mechanism that automatically auto-completes unique queries, provides multi-choice menus for ambiguous search terms, and safely traps empty fields to prevent script crashes.
+* ** Modern Streamlit Web UI**: Upgraded from legacy CLI to an intuitive, responsive Web interface built with Streamlit for enhanced user experience.
+* ** Dual-Database Hash Indexing**: Integrates TFDA Open Data (`39_5.json`) and NHI Drug Registry (`A21030000I-E41001-001.csv`) into memory using fast hash maps for 0.01s lightning-speed searches.
+* ** Multi-Target & Ingredient-Specific Filtering**: Flexible search scope configuration allowing users to toggle between **Ingredient-Only Search** and **Global Multi-Field Search** (Brand Name, License ID, ATC Code, Indications).
+* ** Real-Time TFDA Package Insert Web Scraper**: Dynamically fetches online clinical package inserts (Indications, Dosage & Administration) directly from TFDA MCP systems upon request.
+* ** Dual-Track Offline Fallback Protection**: Automatically falls back to local TFDA JSON indication data if remote government servers experience timeouts or rate-limiting.
+* ** Direct Source Web Navigation**: Includes convenient deep-link buttons (`🌐 前往食藥署仿單詳細網頁`) for quick access to official TFDA package insert web pages.
 
 ---
 
-## ⚡ Data Architecture & Performance Optimizations
+## ⚡ Data Architecture & Cross-Matching
 
-To overcome the common limitations of querying unstable government nodes directly (such as severe rate-limiting, layout updates, and large compressed `.zip` downloads), this project implements a highly optimized **Mirror Cache Workflow**:
-
-1. **0.05s Instant Boot (Lazy Loading)**: On startup, the system opens the local data dictionary (`39_5.json`) instantly. The local search engine runs completely offline with **zero loading latency**, avoiding any API handshakes during user queries.
-2. **Silent Background Synchronization**: To keep the data fresh without penalizing the user's workflow, the program automatically spawns a silent data sync thread **only when the user gracefully exits the program (by pressing Enter on an empty query)**. 
-3. **Google Drive API Mirror**: It checks and mirrors the latest drug registry data from a pre-configured Google Drive cloud endpoint, overwriting the local JSON cache for the next seamless launch. It also gracefully falls back to the previous local backup if network connectivity is compromised.
+| Data Field | Source Database | Matching Mechanism |
+| :--- | :--- | :--- |
+| **Brand Name (ZH/EN)** | `39_5.json` (TFDA) | Direct Field Mapping |
+| **License ID** | `39_5.json` (TFDA) | Normalized Digit Normalization |
+| **Ingredient Name** | `A21030000I-E41001-001.csv` (NHI) | Dual-Key Hash Indexing (License ID / English Name) |
+| **ATC Code & Price** | `A21030000I-E41001-001.csv` (NHI) | Normalized Key Lookup |
+| **Indications & Dosage**| Real-Time Web Scraping / Offline Backup | Dynamic HTML Parsing + Local Fallback |
 
 ---
 
-## 🛠️ Tech Stack & Prerequisites
+## 🛠️ Tech Stack & Dependencies
 
-- **Language**: Python 3.x
-- **Core Dependencies**: 
-  - `BeautifulSoup4` (HTML parsing and DOM traversal)
-  - `json`, `urllib` (Standard libraries for cloud fetching and dictionary storage)
+* **Frontend & Web Framework**: [Streamlit](https://streamlit.io/)
+* **Data Processing**: [Pandas](https://pandas.pydata.org/)
+* **HTML Scraping & Parsing**: [BeautifulSoup4](https://www.crummy.com/software/BeautifulSoup/bs4/doc/)
+* **Runtime**: Python 3.9+
 
-To get started, clone the repository and install the text-parsing library via pip:
+---
 
-```bash
-pip install beautifulsoup4
+## ⚙️ Installation & Local Setup
+
+1. **Clone the Repository**:
+   ```bash
+   git clone [https://github.com/fover60732/Taiwan-Drug-Package-Insert-Crawler.git](https://github.com/fover60732/Taiwan-Drug-Package-Insert-Crawler.git)
+   cd Taiwan-Drug-Package-Insert-Crawler
