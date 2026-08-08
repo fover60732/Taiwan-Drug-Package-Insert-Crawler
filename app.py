@@ -8,13 +8,14 @@ import pandas as pd
 import streamlit as st
 
 # =====================================================================
-# 1. 頁面配置與全域變數
+# 1. 頁面配置 (必須是第一個 Streamlit 指令)
 # =====================================================================
 st.set_page_config(
     page_title="臺灣健保藥品與電子仿單查詢系統", page_icon="💊", layout="wide"
 )
+
 st.title("💊 臺灣健保藥品與電子仿單查詢系統")
-st.caption("🔒 白字深藍高亮版：線上抓取與離線適應症雙軌備援")
+st.caption("🔒 本機極速測試版")
 
 SERVICEURL = "https://mcp.fda.gov.tw/im_detail_1/"
 HEADERS = {
@@ -28,8 +29,10 @@ HEADERS = {
     'Accept-Language': 'zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7',
 }
 
+CSV_FILE = "A21030000I-E41001-001.csv"
+JSON_FILE = "39_5.json"
 
-# 字號正規化工具
+
 def clean_lic_num(text):
   if not text or text == "無紀錄":
     return ""
@@ -37,7 +40,6 @@ def clean_lic_num(text):
   return "".join(nums) if nums else str(text).strip().upper()
 
 
-# 英文名稱正規化工具
 def normalize_ename(name):
   if not name or name == "無紀錄":
     return ""
@@ -45,7 +47,6 @@ def normalize_ename(name):
   return clean
 
 
-# 藍底白字高亮 HTML 輸出工具
 def render_blue_badge(text):
   if not text or text == "無紀錄":
     return "無紀錄"
@@ -53,14 +54,14 @@ def render_blue_badge(text):
 
 
 # =====================================================================
-# 2. 雙資料庫智慧對應 (從 CSV 讀取 成分、ATC代碼、支付價)
+# 2. 本機資料庫載入 (不進行雲端連線，純讀取本機檔案)
 # =====================================================================
 @st.cache_data
 def load_and_index_databases():
   json_data = []
-  if os.path.exists("39_5.json"):
+  if os.path.exists(JSON_FILE):
     try:
-      with open("39_5.json", "r", encoding="utf-8") as f:
+      with open(JSON_FILE, "r", encoding="utf-8") as f:
         data = json.load(f)
         if isinstance(data, dict):
           for key in data:
@@ -69,18 +70,17 @@ def load_and_index_databases():
               break
         elif isinstance(data, list):
           json_data = data
-    except Exception:
-      pass
+    except Exception as e:
+      st.error(f"❌ 讀取 {JSON_FILE} 失敗：{e}")
 
   lic_index = {}
   ename_index = {}
-  csv_file = "A21030000I-E41001-001.csv"
 
-  if os.path.exists(csv_file):
+  if os.path.exists(CSV_FILE):
     df = None
     for enc in ["cp950", "big5", "utf-8"]:
       try:
-        df = pd.read_csv(csv_file, encoding=enc, low_memory=False)
+        df = pd.read_csv(CSV_FILE, encoding=enc, low_memory=False)
         break
       except Exception:
         continue
@@ -162,10 +162,11 @@ def load_and_index_databases():
   return json_data, lic_index, ename_index
 
 
-json_database, lic_index, ename_index = load_and_index_databases()
+with st.spinner("⚡ 正在載入本地資料庫..."):
+  json_database, lic_index, ename_index = load_and_index_databases()
 
 if not json_database:
-  st.error("❌ 錯誤：找不到 39_5.json！請確認檔案位置。")
+  st.error("❌ 錯誤：在目前資料夾找不到 39_5.json 檔案！")
   st.stop()
 
 
@@ -191,7 +192,7 @@ def get_field_from_dict(item, target_keys):
 
 
 # =====================================================================
-# 3. 直連爬蟲 (連線上限 5 秒，自動辨識適應症與用法用量)
+# 3. 直連爬蟲
 # =====================================================================
 @st.cache_data(show_spinner=False, ttl=7200)
 def fetch_fda_online_details(address):
@@ -202,7 +203,7 @@ def fetch_fda_online_details(address):
   req = urllib.request.Request(url, headers=HEADERS)
 
   try:
-    data = urllib.request.urlopen(req, timeout=5.0).read()
+    data = urllib.request.urlopen(req, timeout=3.5).read()
     soup = BeautifulSoup(data, "html.parser")
 
     all_portions = soup.find_all("div", class_="toggle")
@@ -362,11 +363,9 @@ if submit_button or keyword:
           st.markdown(f"**ATC代碼：** `{drug['ATC代碼']}`")
           st.markdown(f"**健保支付價：** `{drug['支付價']}`")
 
-          # 自動讀取線上仿單與用法用量 (含離線自動備援機制)
           with st.spinner("⚡ 正在對接食藥署線上系統..."):
             online_ind, online_dos, err = fetch_fda_online_details(lic_num)
 
-            # 🎯 適應症 (藍底白字 + 離線自動補位)
             final_ind = online_ind if online_ind else drug["本地適應症"]
             if final_ind != "無紀錄":
               st.markdown(
@@ -376,7 +375,6 @@ if submit_button or keyword:
             else:
               st.markdown("**適應症：** 無紀錄")
 
-            # 🎯 用法用量 (藍底白字)
             if online_dos:
               st.markdown(
                   f"**用法用量：** {render_blue_badge(online_dos)}",
@@ -390,7 +388,6 @@ if submit_button or keyword:
               )
 
           st.markdown(" ")
-          # 🎯 底部直連食藥署詳細頁面超連結按鈕
           target_fda_url = f"https://mcp.fda.gov.tw/im_detail_1/{urllib.parse.quote(lic_num)}"
           st.link_button(
               "🌐 前往食藥署仿單詳細網頁",
