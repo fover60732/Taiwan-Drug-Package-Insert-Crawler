@@ -28,6 +28,16 @@ A modern, high-performance Web application designed for pharmacists, healthcare 
 
 ---
 
+## 📂 Data Sources & Local Development (資料來源與本機開發)
+
+若你想在自己的電腦本機 (Local) 運行此專案，請注意：
+本專案使用之大型資料庫檔案未直接上傳至 Git 倉庫（以保持專案輕量化）。
+
+* **藥品主資料庫 (`39_5.json`)**：[點此至雲端硬碟下載](https://drive.google.com/file/d/1ip_lP0Jard142l7Si9xHvXsma2V-1QfW/view?usp=sharing)
+* **健保支付價資料庫 (`A21030000I-E41001-001.csv`)**：[點此至雲端硬碟下載](https://drive.google.com/file/d/1vhIX7aKWPqz3Ty-vpYH9076cnQEINCX8/view?usp=sharing)
+
+---
+
 ## 🛠️ Tech Stack & Dependencies
 
 * **Frontend & Web Framework**: [Streamlit](https://streamlit.io/)
