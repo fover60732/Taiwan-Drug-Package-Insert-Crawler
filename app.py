@@ -302,6 +302,15 @@ KEY_MAP = {
     "英文名稱": ["藥品英文", "藥品英文名稱", "英文品名", "英文藥名"],
     "許可證字號": ["許可證字號", "字號", "許可證號", "藥品代號", "證號"],
     "適應症": ["適應症", "主要適應症", "效能"],
+    "劑型": ["劑型", "藥品劑型", "劑型名稱"],
+    "申請商": [
+        "申請商",
+        "申請商名稱",
+        "藥商",
+        "藥商名稱",
+        "申請人",
+        "許可證持有者",
+    ],
 }
 
 if submit_button or keyword:
@@ -309,14 +318,22 @@ if submit_button or keyword:
   if kw_clean:
     kw_lower = kw_clean.lower()
     matched_results = []
+    seen_lics = set()  # 用於紀錄已出現過的許可證字號 (去重機制)
 
     for item in json_database:
+      lic_num = get_field_from_dict(item, KEY_MAP["許可證字號"])
+      clean_lic = clean_lic_num(lic_num)
+
+      # 去重關鍵：如果這個許可證字號已經加入過，直接跳過不重複顯示
+      if clean_lic and clean_lic in seen_lics:
+        continue
+
       c_name = get_field_from_dict(item, KEY_MAP["中文名稱"])
       e_name = get_field_from_dict(item, KEY_MAP["英文名稱"])
-      lic_num = get_field_from_dict(item, KEY_MAP["許可證字號"])
       local_ind = get_field_from_dict(item, KEY_MAP["適應症"])
+      dosage_form = get_field_from_dict(item, KEY_MAP["劑型"])
+      applicant = get_field_from_dict(item, KEY_MAP["申請商"])
 
-      clean_lic = clean_lic_num(lic_num)
       clean_en = normalize_ename(e_name)
 
       csv_info = {"ingredient": "無紀錄", "atc": "無紀錄", "price": "無紀錄"}
@@ -347,6 +364,8 @@ if submit_button or keyword:
             or kw_lower in local_ind.lower()
             or kw_lower in ingredient_from_csv.lower()
             or kw_lower in atc_code.lower()
+            or kw_lower in dosage_form.lower()
+            or kw_lower in applicant.lower()
         ):
           is_matched = True
 
@@ -359,12 +378,16 @@ if submit_button or keyword:
             "ATC代碼": atc_code,
             "支付價": price_val,
             "本地適應症": local_ind,
+            "劑型": dosage_form,
+            "申請商": applicant,
         })
+        if clean_lic:
+          seen_lics.add(clean_lic)  # 標記該字號已列入結果
 
     if not matched_results:
       st.warning(f"❌ 找不到包含關鍵字【{kw_clean}】的藥品資料！")
     else:
-      st.success(f"🎉 共找到 {len(matched_results)} 筆藥品資料！")
+      st.success(f"🎉 共找到 {len(matched_results)} 筆不重複的藥品資料！")
 
       for idx, drug in enumerate(matched_results[:20], start=1):
         c_name = drug["中文名稱"]
@@ -378,13 +401,18 @@ if submit_button or keyword:
           st.markdown(f"**藥品英文名稱：** {e_name}")
           st.markdown(f"**許可證字號：** `{lic_num}`")
 
+          # 欄位順序：成分 ➔ 劑型 ➔ 申請商 ➔ ATC ➔ 支付價
           st.markdown(f"**成分：** `{drug['成分']}`")
+          st.markdown(f"**劑型：** `{drug['劑型']}`")
+          st.markdown(f"**申請商：** `{drug['申請商']}`")
+
           st.markdown(f"**ATC代碼：** `{drug['ATC代碼']}`")
           st.markdown(f"**健保支付價：** `{drug['支付價']}`")
 
           with st.spinner("⚡ 正在對接食藥署線上系統..."):
             online_ind, online_dos, err = fetch_fda_online_details(lic_num)
 
+            # 適應症
             final_ind = online_ind if online_ind else drug["本地適應症"]
             if final_ind != "無紀錄":
               st.markdown(
@@ -394,6 +422,7 @@ if submit_button or keyword:
             else:
               st.markdown("**適應症：** 無紀錄")
 
+            # 用法用量
             if online_dos:
               st.markdown(
                   f"**用法用量：** {render_blue_badge(online_dos)}",
