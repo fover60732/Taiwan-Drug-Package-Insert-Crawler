@@ -62,7 +62,6 @@ def render_blue_badge(text):
 # =====================================================================
 @st.cache_data(show_spinner=False)
 def load_and_index_databases():
-  # 自動下載機制
   if not os.path.exists(JSON_FILE):
     try:
       url = f"https://drive.google.com/uc?id={JSON_GDRIVE_ID}"
@@ -195,6 +194,8 @@ def get_field_from_dict(item, target_keys):
       for k, v in item.items()
       if k is not None
   }
+
+  # 1. 精確匹配
   for tk in target_keys:
     clean_tk = tk.replace(" ", "").strip()
     if clean_tk in cleaned:
@@ -207,6 +208,21 @@ def get_field_from_dict(item, target_keys):
         if isinstance(val, list):
           return " ; ".join([str(x).strip() for x in val])
         return str(val).strip()
+
+  # 2. 模糊匹配 (防止 Key 名稱有些微落差)
+  for tk in target_keys:
+    clean_tk = tk.replace(" ", "").strip()
+    for k, v in cleaned.items():
+      if clean_tk in k or k in clean_tk:
+        if (
+            v is not None
+            and str(v).strip() != ""
+            and str(v).strip().lower() not in ["none", "null"]
+        ):
+          if isinstance(v, list):
+            return " ; ".join([str(x).strip() for x in v])
+          return str(v).strip()
+
   return "無紀錄"
 
 
@@ -297,18 +313,46 @@ with st.form(key="search_form"):
       label="🔍 立即查詢 (按下 Enter 即可發送)"
   )
 
+# 已補齊「申請商名稱」等精確欄位 Key
 KEY_MAP = {
-    "中文名稱": ["藥品中文", "藥品中文名稱", "中文品名", "中文藥名"],
-    "英文名稱": ["藥品英文", "藥品英文名稱", "英文品名", "英文藥名"],
-    "許可證字號": ["許可證字號", "字號", "許可證號", "藥品代號", "證號"],
+    "中文名稱": [
+        "中文品名",
+        "藥品中文",
+        "藥品中文名稱",
+        "中文藥名",
+        "中文名稱",
+    ],
+    "英文名稱": [
+        "英文品名",
+        "藥品英文",
+        "藥品英文名稱",
+        "英文藥名",
+        "英文名稱",
+    ],
+    "許可證字號": [
+        "許可證字號",
+        "字號",
+        "許可證號",
+        "藥品代號",
+        "證號",
+        "許可證",
+    ],
     "適應症": ["適應症", "主要適應症", "效能"],
-    "劑型": ["劑型", "藥品劑型", "劑型名稱"],
+    "劑型": [
+        "劑型",
+        "劑型名稱",
+        "藥品劑型",
+        "劑型代碼",
+        "Dosage Form",
+        "DOSAGE_FORM",
+    ],
     "申請商": [
-        "申請商",
         "申請商名稱",
-        "藥商",
+        "申請商",
         "藥商名稱",
+        "藥商",
         "申請人",
+        "申請人名稱",
         "許可證持有者",
     ],
 }
@@ -318,13 +362,12 @@ if submit_button or keyword:
   if kw_clean:
     kw_lower = kw_clean.lower()
     matched_results = []
-    seen_lics = set()  # 用於紀錄已出現過的許可證字號 (去重機制)
+    seen_lics = set()
 
     for item in json_database:
       lic_num = get_field_from_dict(item, KEY_MAP["許可證字號"])
       clean_lic = clean_lic_num(lic_num)
 
-      # 去重關鍵：如果這個許可證字號已經加入過，直接跳過不重複顯示
       if clean_lic and clean_lic in seen_lics:
         continue
 
@@ -382,12 +425,12 @@ if submit_button or keyword:
             "申請商": applicant,
         })
         if clean_lic:
-          seen_lics.add(clean_lic)  # 標記該字號已列入結果
+          seen_lics.add(clean_lic)
 
     if not matched_results:
       st.warning(f"❌ 找不到包含關鍵字【{kw_clean}】的藥品資料！")
     else:
-      st.success(f"🎉 共找到 {len(matched_results)} 筆不重複的藥品資料！")
+      st.success(f"🎉 共找到 {len(matched_results)} 筆藥品資料！")
 
       for idx, drug in enumerate(matched_results[:20], start=1):
         c_name = drug["中文名稱"]
@@ -401,7 +444,7 @@ if submit_button or keyword:
           st.markdown(f"**藥品英文名稱：** {e_name}")
           st.markdown(f"**許可證字號：** `{lic_num}`")
 
-          # 欄位順序：成分 ➔ 劑型 ➔ 申請商 ➔ ATC ➔ 支付價
+          # 排列順序：成分 ➔ 劑型 ➔ 申請商 ➔ ATC代碼 ➔ 健保支付價
           st.markdown(f"**成分：** `{drug['成分']}`")
           st.markdown(f"**劑型：** `{drug['劑型']}`")
           st.markdown(f"**申請商：** `{drug['申請商']}`")
