@@ -54,7 +54,7 @@ def normalize_ename(name):
 def render_blue_badge(text):
   if not text or text == "無紀錄":
     return "無紀錄"
-  return f'<span style="background-color: #1e3a8a; color: #ffffff; padding: 4px 8px; border-radius: 4px; font-weight: 500; display: inline-block;">{text}</span>'
+  return f'<span style="background-color: #f0f9ff; color: #1e3a8a; border: 1px solid #e0f2fe; padding: 4px 8px; border-radius: 4px; font-weight: 500; display: inline-block;">{text}</span>'
 
 
 # =====================================================================
@@ -486,10 +486,10 @@ with tab1:
         )
       else:
         st.success(
-            f"🎉 共找到 {len(matched_results)} 筆不重複的藥品資料（篩選：{status_filter}）！"
+            f"🎉 共找到 {len(matched_results)} 筆藥品資料（篩選：{status_filter}）！"
         )
 
-        for idx, drug in enumerate(matched_results[:20], start=1):
+        for idx, drug in enumerate(matched_results, start=1):
           c_name = drug["中文名稱"]
           e_name = drug["英文名稱"]
           lic_num = drug["許可證字號"]
@@ -500,44 +500,36 @@ with tab1:
           ):
             st.markdown(f"**藥品中文名稱：** {c_name}")
             st.markdown(f"**藥品英文名稱：** {e_name}")
+
+            # 許可證字號純文字，狀態保留灰底框
             st.markdown(
-                f"**許可證字號：** `{lic_num}` （狀態："
-                f" `{drug['註銷狀態']}`）"
+                f"**許可證字號：** {lic_num} （狀態：`{drug['註銷狀態']}`）"
             )
 
-            # 依序排列：成分 -> 劑型 -> 申請商 -> ATC -> 支付價
-            st.markdown(f"**成分：** `{drug['成分']}`")
-            st.markdown(f"**劑型：** `{drug['劑型']}`")
-            st.markdown(f"**申請商：** `{drug['申請商']}`")
+            # 依序排列（純文字）：成分 -> 劑型 -> 申請商 -> ATC -> 支付價
+            st.markdown(f"**成分：** {drug['成分']}")
+            st.markdown(f"**劑型：** {drug['劑型']}")
+            st.markdown(f"**申請商：** {drug['申請商']}")
 
-            st.markdown(f"**ATC代碼：** `{drug['ATC代碼']}`")
-            st.markdown(f"**健保支付價：** `{drug['支付價']}`")
+            st.markdown(f"**ATC代碼：** {drug['ATC代碼']}")
+            st.markdown(f"**健保支付價：** {drug['支付價']}")
 
             with st.spinner("⚡ 正在對接食藥署線上系統..."):
               online_ind, online_dos, err = fetch_fda_online_details(lic_num)
 
-              # 適應症
+              # 適應症 (純文字)
               final_ind = online_ind if online_ind else drug["本地適應症"]
               if final_ind != "無紀錄":
-                st.markdown(
-                    f"**適應症：** {render_blue_badge(final_ind)}",
-                    unsafe_allow_html=True,
-                )
+                st.markdown(f"**適應症：** {final_ind}")
               else:
                 st.markdown("**適應症：** 無紀錄")
 
-              # 用法用量
+              # 用法用量 (純文字)
               if online_dos:
-                st.markdown(
-                    f"**用法用量：** {render_blue_badge(online_dos)}",
-                    unsafe_allow_html=True,
-                )
+                st.markdown(f"**用法用量：** {online_dos}")
               else:
                 fallback_err = err if err else "無紀錄"
-                st.markdown(
-                    f"**用法用量：** {render_blue_badge(fallback_err)}",
-                    unsafe_allow_html=True,
-                )
+                st.markdown(f"**用法用量：** {fallback_err}")
 
             st.markdown(" ")
             target_fda_url = f"https://mcp.fda.gov.tw/im_detail_1/{urllib.parse.quote(lic_num)}"
@@ -585,16 +577,49 @@ with tab2:
 
   st.markdown("---")
 
-  # 3. 醫學與文獻資料庫
-  st.subheader("📚 資料庫")
-  st.link_button(
-      "🔬 PubMed 生物醫學文獻資料庫",
-      "https://pubmed.ncbi.nlm.nih.gov/",
-  )
+  # 3. 各國 HTA 查詢
+  st.subheader("🏛️ 各國 HTA 查詢")
+  hta_col1, hta_col2, hta_col3 = st.columns(3)
+
+  with hta_col1:
+    st.link_button("🇨🇦 CDA-AMC Reports", "https://www.cda-amc.ca/find-reports")
+
+  with hta_col2:
+    st.link_button(
+        "🇦🇺 PBAC Public Summary Documents",
+        "https://www.pbs.gov.au/industry/pbac/psd",
+    )
+
+  with hta_col3:
+    st.link_button("🇬🇧 NICE Guidelines & Guidance", "https://www.nice.org.uk/")
 
   st.markdown("---")
 
-  # 4. 癌症 Guideline 查詢
+  # 4. 醫學與文獻資料庫
+  st.subheader("📚 資料庫")
+  db_col1, db_col2, db_col3 = st.columns(3)
+
+  with db_col1:
+    st.link_button(
+        "🔬 PubMed 生物醫學文獻資料庫",
+        "https://pubmed.ncbi.nlm.nih.gov/",
+    )
+
+  with db_col2:
+    st.link_button(
+        "🧪 Embase 生物醫學與藥學資料庫",
+        "https://www.embase.com",
+    )
+
+  with db_col3:
+    st.link_button(
+        "🩺 Amboss 臨床醫學知識平台",
+        "https://www.amboss.com/int",
+    )
+
+  st.markdown("---")
+
+  # 5. 癌症 Guideline 查詢
   st.subheader("🩺 臨床指引 (Guidelines)")
   st.link_button(
       "📖 NCCN Clinical Practice Guidelines in Oncology",
@@ -603,7 +628,7 @@ with tab2:
 
   st.markdown("---")
 
-  # 5. 文書處理與學術工具
+  # 6. 文書處理與學術工具
   st.subheader("📝 文書處理與排版教學工具")
   st.link_button(
       "📄 Word文件排版應用教學指南 (PDF)",
