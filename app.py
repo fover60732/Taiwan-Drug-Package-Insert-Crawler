@@ -76,7 +76,11 @@ def normalize_ename(name):
 def render_blue_badge(text):
   if not text or text == "無紀錄":
     return "無紀錄"
-  return f'<span style="background-color: #f0f9ff; color: #1e3a8a; border: 1px solid #e0f2fe; padding: 4px 8px; border-radius: 4px; font-weight: 500; display: inline-block;">{text}</span>'
+  return (
+      '<span style="background-color: #f0f9ff; color: #1e3a8a; border: 1px'
+      " solid #e0f2fe; padding: 4px 8px; border-radius: 4px; font-weight: 500;"
+      f' display: inline-block;">{text}</span>'
+  )
 
 
 def remove_markdown_decorations(text: str) -> str:
@@ -977,20 +981,38 @@ with tab2:
       status_box.info(f"正在開啟 Chrome 前往 {target_type}...")
 
       user_data_dir = os.path.abspath("./chrome_temp_profile")
+      is_cloud = "/mount/src" in os.path.abspath(__file__)
+
+      launch_args = [
+          "--disable-blink-features=AutomationControlled",
+          "--no-sandbox",
+          "--disable-setuid-sandbox",
+          "--disable-dev-shm-usage",
+      ]
+      if not is_cloud:
+        launch_args.append("--start-maximized")
 
       try:
         with sync_playwright() as p:
-          context = p.chromium.launch_persistent_context(
-              user_data_dir=user_data_dir,
-              channel="chrome",
-              headless=False,
-              no_viewport=True,
-              args=[
-                  "--disable-blink-features=AutomationControlled",
-                  "--start-maximized",
-              ],
-              ignore_default_args=["--enable-automation"],
-          )
+          try:
+            # 優先嘗試啟動本機 Chrome（若為雲端環境則自動略過）
+            context = p.chromium.launch_persistent_context(
+                user_data_dir=user_data_dir,
+                channel="chrome" if not is_cloud else None,
+                headless=is_cloud,
+                no_viewport=not is_cloud,
+                args=launch_args,
+                ignore_default_args=["--enable-automation"],
+            )
+          except Exception:
+            # 備援啟動標準 Chromium
+            context = p.chromium.launch_persistent_context(
+                user_data_dir=user_data_dir,
+                headless=is_cloud,
+                no_viewport=not is_cloud,
+                args=launch_args,
+                ignore_default_args=["--enable-automation"],
+            )
 
           init_page = context.pages[0] if context.pages else context.new_page()
 
@@ -1546,4 +1568,3 @@ with tab3:
             )
           except Exception as e:
             st.error(f"❌ 摘要生成失敗：{str(e)}")
-
