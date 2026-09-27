@@ -14,6 +14,7 @@ A modern, high-performance Web application designed for pharmacists, healthcare 
 * **Multi-Target & Ingredient-Specific Search**: Flexible search scope configuration allowing users to toggle between **Ingredient-Only Search** and **Global Multi-Field Search** (Brand Name, License ID, Applicant, Dosage Form, ATC Code, Indications).
 * **Real-Time TFDA Package Insert Scraper**: Dynamically fetches online clinical package inserts (Indications, Dosage & Administration) directly from TFDA MCP systems upon expansion.
 * **Integrated Regulatory & HTA Hub (`🔗 常用連結`)**: Provides 1-click access buttons for WHO ATC/DDD, international regulatory authorities (US FDA, EMA, TGA, Health Canada, MHRA), HTA agency databases (CDA-AMC, PBAC, NICE), medical databases (PubMed, Embase, Amboss), NCCN Oncology Guidelines, and Word formatting guides.
+* **國際 HTA 引用資訊擷取：自動記錄各國報告之 Title、Date 與 URL
 
 ---
 
